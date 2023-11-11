@@ -1,0 +1,6 @@
+sve_*
+fip_*.csv
+*.pickle
+*.hdf5
+*.dream3d
+__pycache__
