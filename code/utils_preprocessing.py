@@ -406,11 +406,11 @@ def make_torchdataset(torchdata_dir, graph_dir, fip_dir, scaler_dir, texture, tr
         fip /= max_fip
 
 
-        # rewrite data (maybe unneccessary because its shallow copy..)
-        data.x = x
+        # rewrite data with type casting
+        data.x = x.float()
         data.edge_index = edge_index
-        data.e = e
-        data.fip = fip
+        data.e = e.float()
+        data.fip = torch.from_numpy(fip).float()
 
         datalist.append(data)
 
