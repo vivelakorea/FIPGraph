@@ -8,10 +8,10 @@ from matplotlib import scale
 from matplotlib.pyplot import sca
 import numpy as np
 import networkx as nx
+from sklearn.discriminant_analysis import StandardScaler
 import torch
 import torch_geometric
 
-warnings.filterwarnings('ignore')
 
 def __make_pdc(micro):
     '''Pads 3D array with opposing faces.
@@ -236,9 +236,10 @@ def write_nx_graph(graph_dir, hdf5_dir, texture, ith_sve):
 
         size = np.sum(grain_ids == feat)
 
-        sorted_schmid = sorted(__get_fcc_schmids(ori, loading_direction=[1, 0, 0]))
+        sorted_schmid = sorted(__get_fcc_schmids(ori, loading_direction=[1, 0, 0]), reverse=True)
         
         G.add_nodes_from([(feat, {"x": np.hstack([ori, size, sorted_schmid])})])
+        # G.add_nodes_from([(feat, {"x": np.array([sorted_schmid[-1], size])})])
 
     for feat, (nbrs, areas) in nbr_dict.items():
         for nbr, area in zip(nbrs, areas):
@@ -327,25 +328,87 @@ def make_scaler(scaler_dir, graph_dir, fip_dir, texture, num_nfeat, num_efeat):
     # For euler angles, they will be divided by pi, 2*pi, pi without considering data
     # For Schmid factor, it will be multiplied by 2.0 without considering data
 
-    # Size of grain will be divided by maximum size
-    max_grainsize = np.max(nfeat_data[:, 3])
-    with open(file=f'{scaler_dir}\\{texture}\\max_grainsize.pickle', mode='wb') as f:
-        pickle.dump(max_grainsize, f, protocol=pickle.HIGHEST_PROTOCOL)
+    # min_schmid = np.min(nfeat_data[:, 0])
+    # with open(file=f'{scaler_dir}\\{texture}\\min_schmid.pickle', mode='wb') as f:
+    #     pickle.dump(min_schmid, f, protocol=pickle.HIGHEST_PROTOCOL)
 
-    # number of neighbors will be divided by maximum number of neighbors
-    max_num_neighbors = np.max(nfeat_data[:, 16])
-    with open(file=f'{scaler_dir}\\{texture}\\max_num_neighbors.pickle', mode='wb') as f:
-        pickle.dump(max_num_neighbors, f, protocol=pickle.HIGHEST_PROTOCOL)
+    # avg_schmid = np.average(nfeat_data[:, 0])
+    # with open(file=f'{scaler_dir}\\{texture}\\avg_schmid.pickle', mode='wb') as f:
+    #     pickle.dump(avg_schmid, f, protocol=pickle.HIGHEST_PROTOCOL)
 
-    # Area of grain boundary will be divided by maximum area
-    max_gbarea = np.max(efeat_data[:, 0])
-    with open(file=f'{scaler_dir}\\{texture}\\max_gbarea.pickle', mode='wb') as f:
-        pickle.dump(max_gbarea, f, protocol=pickle.HIGHEST_PROTOCOL)
+    # std_schmid = np.std(nfeat_data[:, 0])
+    # with open(file=f'{scaler_dir}\\{texture}\\std_schmid.pickle', mode='wb') as f:
+    #     pickle.dump(std_schmid, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+
+
+    # # Size of grain will be divided by maximum size
+    # max_grainsize = np.max(nfeat_data[:, 1])
+    # with open(file=f'{scaler_dir}\\{texture}\\max_grainsize.pickle', mode='wb') as f:
+    #     pickle.dump(max_grainsize, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+    # avg_grainsize = np.average(nfeat_data[:, 1])
+    # with open(file=f'{scaler_dir}\\{texture}\\avg_grainsize.pickle', mode='wb') as f:
+    #     pickle.dump(avg_grainsize, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+    # std_grainsize = np.std(nfeat_data[:, 1])
+    # with open(file=f'{scaler_dir}\\{texture}\\std_grainsize.pickle', mode='wb') as f:
+    #     pickle.dump(std_grainsize, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+
+
+    # # number of neighbors will be divided by maximum number of neighbors
+    # max_num_neighbors = np.max(nfeat_data[:, 2])
+    # with open(file=f'{scaler_dir}\\{texture}\\max_num_neighbors.pickle', mode='wb') as f:
+    #     pickle.dump(max_num_neighbors, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+    # avg_num_neighbors = np.average(nfeat_data[:, 2])
+    # with open(file=f'{scaler_dir}\\{texture}\\avg_num_neighbors.pickle', mode='wb') as f:
+    #     pickle.dump(avg_num_neighbors, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+    # std_num_neighbors = np.std(nfeat_data[:, 2])
+    # with open(file=f'{scaler_dir}\\{texture}\\std_num_neighbors.pickle', mode='wb') as f:
+    #     pickle.dump(std_num_neighbors, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+
+    # # Area of grain boundary will be divided by maximum area
+    # max_gbarea = np.max(efeat_data[:, 0])
+    # with open(file=f'{scaler_dir}\\{texture}\\max_gbarea.pickle', mode='wb') as f:
+    #     pickle.dump(max_gbarea, f, protocol=pickle.HIGHEST_PROTOCOL)
     
-    # FIP will be divided by maximum FIP
-    max_fip = np.max(fip_data)
-    with open(file=f'{scaler_dir}\\{texture}\\max_fip.pickle', mode='wb') as f:
-        pickle.dump(max_fip, f, protocol=pickle.HIGHEST_PROTOCOL)
+    # # FIP will be divided by maximum FIP
+    # max_fip = np.max(fip_data)
+    # with open(file=f'{scaler_dir}\\{texture}\\max_fip.pickle', mode='wb') as f:
+    #     pickle.dump(max_fip, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+    # avg_fip = np.average(fip_data)
+    # with open(file=f'{scaler_dir}\\{texture}\\avg_fip.pickle', mode='wb') as f:
+    #     pickle.dump(avg_fip, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+    # std_fip = np.std(fip_data)
+    # with open(file=f'{scaler_dir}\\{texture}\\std_fip.pickle', mode='wb') as f:
+    #     pickle.dump(std_fip, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+    nfeat_scaler = StandardScaler()
+    nfeat_scaler.fit(nfeat_data)
+
+    with open(file=f'{scaler_dir}\\{texture}\\nfeat_scaler.pickle', mode='wb') as f:
+        pickle.dump(nfeat_scaler, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+    efeat_scaler = StandardScaler()
+    efeat_scaler.fit(efeat_data)
+
+    with open(file=f'{scaler_dir}\\{texture}\\efeat_scaler.pickle', mode='wb') as f:
+        pickle.dump(efeat_scaler, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+    fip_scaler = StandardScaler()
+    fip_scaler.fit(fip_data)
+
+    with open(file=f'{scaler_dir}\\{texture}\\fip_scaler.pickle', mode='wb') as f:
+        pickle.dump(fip_scaler, f, protocol=pickle.HIGHEST_PROTOCOL)
 
 ######################################################################################################################################
 
@@ -376,40 +439,62 @@ def make_torchdataset(torchdata_dir, graph_dir, fip_dir, scaler_dir, texture, tr
 
         fip = np.loadtxt(fip_file, delimiter=',')[:,1]
 
-        # scale Euler angles
-        x[:,0] /= (2.0*np.pi)
-        x[:,1] /= np.pi
-        x[:,2] /= (2.0*np.pi)
+        # # scale Euler angles
+        # x[:,0] /= (2.0*np.pi)
+        # x[:,1] /= np.pi
+        # x[:,2] /= (2.0*np.pi)
 
-        # scale grain size
-        with open(file=f'{scaler_dir}\\{texture}\\max_grainsize.pickle', mode='rb') as f:
-            max_grainsize = pickle.load(f)
-        x[:,3] /= max_grainsize
+        # # scale grain size
+        # # with open(file=f'{scaler_dir}\\{texture}\\avg_grainsize.pickle', mode='rb') as f:
+        # #     avg_grainsize = pickle.load(f)
+        # # with open(file=f'{scaler_dir}\\{texture}\\std_grainsize.pickle', mode='rb') as f:
+        # #     std_grainsize = pickle.load(f)
+        # # x[:,1] = (x[:,1]-avg_grainsize)/std_grainsize
 
-        # scale Schmid factors
-        x[:,4:16] /= 0.5
+        # # scale Schmid factors
+        # with open(file=f'{scaler_dir}\\{texture}\\avg_schmid.pickle', mode='rb') as f:
+        #     avg_schmid = pickle.load(f)
+        # with open(file=f'{scaler_dir}\\{texture}\\std_schmid.pickle', mode='rb') as f:
+        #     std_schmid = pickle.load(f)
+        # x[:,0] = (x[:,0]-avg_schmid)/std_schmid
 
-        # scale number of neighbors
-        with open(file=f'{scaler_dir}\\{texture}\\max_num_neighbors.pickle', mode='rb') as f:
-            max_num_neighbors = pickle.load(f)
-        x[:,16] /= max_num_neighbors
+        # # scale number of neighbors
+        # # with open(file=f'{scaler_dir}\\{texture}\\avg_num_neighbors.pickle', mode='rb') as f:
+        # #     avg_num_neighbors = pickle.load(f)
+        # # with open(file=f'{scaler_dir}\\{texture}\\std_num_neighbors.pickle', mode='rb') as f:
+        # #     std_num_neighbors = pickle.load(f)
+        # # x[:,2] = (x[:,2]-avg_num_neighbors)/std_num_neighbors
 
-        # scale grain boundary area
-        e = e.float()
-        with open(file=f'{scaler_dir}\\{texture}\\max_gbarea.pickle', mode='rb') as f:
-            max_gbarea = pickle.load(f)
-        e /= max_gbarea
+        # # scale grain boundary area
+        # e = e.float()
+        # with open(file=f'{scaler_dir}\\{texture}\\max_gbarea.pickle', mode='rb') as f:
+        #     max_gbarea = pickle.load(f)
+        # e /= max_gbarea
 
-        # scale fips
-        with open(file=f'{scaler_dir}\\{texture}\\max_fip.pickle', mode='rb') as f:
-            max_fip = pickle.load(f)
-        fip /= max_fip
+        # # scale fips
+        # with open(file=f'{scaler_dir}\\{texture}\\avg_fip.pickle', mode='rb') as f:
+        #     avg_fip = pickle.load(f)
+        # with open(file=f'{scaler_dir}\\{texture}\\std_fip.pickle', mode='rb') as f:
+        #     std_fip = pickle.load(f)
+        # fip = (fip-avg_fip)/std_fip
 
+        with open(file=f'{scaler_dir}\\{texture}\\nfeat_scaler.pickle', mode='rb') as f:
+            nfeat_scaler = pickle.load(f)
+        x = nfeat_scaler.transform(x)
+
+        with open(file=f'{scaler_dir}\\{texture}\\efeat_scaler.pickle', mode='rb') as f:
+            efeat_scaler = pickle.load(f)
+        e = efeat_scaler.transform(e[:,None])
+
+        with open(file=f'{scaler_dir}\\{texture}\\fip_scaler.pickle', mode='rb') as f:
+            fip_scaler = pickle.load(f)
+        fip = fip_scaler.transform(fip[:,None])
+        
 
         # rewrite data with type casting
-        data.x = x.float()
+        data.x = torch.from_numpy(x).float()
         data.edge_index = edge_index
-        data.e = e.float()
+        data.e = torch.from_numpy(e).float()
         data.fip = torch.from_numpy(fip).float()
 
         datalist.append(data)
