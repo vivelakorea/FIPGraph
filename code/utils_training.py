@@ -86,11 +86,13 @@ class GNN(torch.nn.Module):
     def __init__(self):
         super(GNN, self).__init__()
 
-        self.sage1 = SAGEConv(17,1,improved=True)
-        # self.gconv2 = GCNConv(1,1)
-        # self.gconv3 = GCNConv(32,64)
-        # self.gconv4 = GCNConv(64,32)
-        # self.gconv5 = GCNConv(32,16)
+        self.sage1 = SAGEConv(17,8,improved=True)
+        self.sage2 = SAGEConv(8,8,improved=True)
+        self.sage3 = SAGEConv(8,8,improved=True)
+        self.sage4 = SAGEConv(8,8,improved=True)
+        self.sage5 = SAGEConv(8,8,improved=True)
+        self.sage6 = SAGEConv(8,8,improved=True)
+        self.sage7 = SAGEConv(8,1,improved=True)
         # self.gconv6 = GCNConv(16,16)
         # self.sigmoid1 = F.relu()
 
@@ -101,16 +103,18 @@ class GNN(torch.nn.Module):
 
         x = F.elu(self.sage1(x, edge_index))
         # x = F.dropout(x, 0.8, training=self.training)
-        # x = F.relu(self.gconv2(x, edge_index, edge_weight))
+        x = F.elu(self.sage2(x, edge_index))
         # x = F.dropout(x, 0.9, training=self.training)
-        # x = F.relu(self.gconv3(x, edge_index, edge_weight))
+        x = F.elu(self.sage3(x, edge_index))
         # x = F.dropout(x, 0.9, training=self.training)
-        # x = F.relu(self.gconv4(x, edge_index, edge_weight))
+        x = F.elu(self.sage4(x, edge_index))
         # x = F.dropout(x, 0.9, training=self.training)
-        # x = F.relu(self.gconv5(x, edge_index, edge_weight))
+        x = F.relu(self.sage5(x, edge_index))
         # x = F.dropout(x, 0.9, training=self.training)
-        # x = F.relu(self.gconv6(x, edge_index, edge_weight))
+        x = F.relu(self.sage6(x, edge_index))
         # x = F.dropout(x, 0.9, training=self.training)
+        x = F.relu(self.sage7(x, edge_index))
+
 
         x = self.out(x)
 
