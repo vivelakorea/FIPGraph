@@ -125,6 +125,73 @@ def __get_grains(dream3d_fname):
 
 ######################################################################################################################################
 
+def __get_orientation_matrix(euler_angles):
+    euler1, euler2, euler3 = euler_angles
+
+    COS = np.cos
+    SIN = np.sin
+
+    orientation_matrix = np.array([
+        [COS(euler1)*COS(euler3)-SIN(euler1)*SIN(euler3)*COS(euler2), SIN(euler1)*COS(euler3)+COS(euler1)*SIN(euler3)*COS(euler2), SIN(euler2)*SIN(euler3)],
+        [-COS(euler1)*SIN(euler3)-SIN(euler1)*COS(euler3)*COS(euler2), -SIN(euler1)*SIN(euler3)+COS(euler1)*COS(euler3)*COS(euler2), SIN(euler2)*COS(euler3)],
+        [SIN(euler1)*SIN(euler2), -COS(euler1)*SIN(euler2), COS(euler2)]
+    ])
+
+    return orientation_matrix
+
+######################################################################################################################################
+
+def __rotate_stiffness(D11, D12, D44, euler_angles):
+    # https://jakubmikula.com/solidmechanics/2017/06/18/Cubic-Elasticity.html
+    R_cg = __get_orientation_matrix(euler_angles)
+    print(R_cg)
+    
+    D = np.zeros((6,6))
+    D[0,0] = D11; D[0,1] = D12; D[0,2] = D12
+    D[1,0] = D12; D[1,1] = D11; D[1,2] = D12
+    D[2,0] = D12; D[2,1] = D12; D[2,2] = D11
+    D[3,3] = D44; D[4,4] = D44; D[5,5] = D44
+
+    R = np.zeros((6,6))
+    R[0,0] = 1; R[1,1] = 1; R[2,2] = 1
+    R[3,3] = 2; R[4,4] = 2; R[5,5] = 2
+
+    invR = np.zeros((6,6))
+    invR[0,0] = 1; invR[1,1] = 1; invR[2,2] = 1
+    invR[3,3] = 0.5; invR[4,4] = 0.5; invR[5,5] = 0.5
+
+    K1 = np.zeros((3,3))
+    K2 = np.zeros((3,3))
+    K3 = np.zeros((3,3))
+    K4 = np.zeros((3,3))
+
+    mmod = np.array([0,1,2,0,1])
+
+    for i in range(3):
+        for j in range(3):
+            K1[i,j] = R_cg[i,j]**2
+            K2[i,j] = R_cg[i,mmod[j+1]]*R_cg[i,mmod[j+2]]
+            K3[i,j] = R_cg[mmod[i+1],j]*R_cg[mmod[i+2],j]
+            K4[i,j] = R_cg[mmod[i+1],mmod[j+1]]*R_cg[mmod[i+2],mmod[j+2]] + R_cg[mmod[i+1],mmod[j+2]]*R_cg[mmod[i+2],mmod[j+1]]
+
+    T_cg = np.zeros((6,6))
+    T_cg[0:3,0:3] = K1
+    T_cg[0:3,3:6] = 2.0*K2
+    T_cg[3:6,0:3] = K3
+    T_cg[3:6,3:6] = K4
+
+    invT_cg = np.zeros((6,6))
+    invT_cg[0:3,0:3] = K1.T
+    invT_cg[0:3,3:6] = 2.0*K3.T
+    invT_cg[3:6,0:3] = K2.T
+    invT_cg[3:6,3:6] = K4.T
+
+    D_rot = T_cg@D@R@invT_cg@invR
+    
+    return D_rot
+
+######################################################################################################################################
+
 def __get_fcc_schmids(euler_angles, loading_direction): 
     '''
     Calculate all euler angles of fcc
@@ -152,17 +219,8 @@ def __get_fcc_schmids(euler_angles, loading_direction):
         {'hkl': [-1.,1.,-1.], 'uvw': [1.,0.,-1.]},
         {'hkl': [-1.,1.,-1.], 'uvw': [-1.,-1.,0.]},
     ]
-    
-    euler1, euler2, euler3 = euler_angles
 
-    COS = np.cos
-    SIN = np.sin
-
-    orientation_matrix = np.array([
-        [COS(euler1)*COS(euler3)-SIN(euler1)*SIN(euler3)*COS(euler2), SIN(euler1)*COS(euler3)+COS(euler1)*SIN(euler3)*COS(euler2), SIN(euler2)*SIN(euler3)],
-        [-COS(euler1)*SIN(euler3)-SIN(euler1)*COS(euler3)*COS(euler2), -SIN(euler1)*SIN(euler3)+COS(euler1)*COS(euler3)*COS(euler2), SIN(euler2)*COS(euler3)],
-        [SIN(euler1)*SIN(euler2), -COS(euler1)*SIN(euler2), COS(euler2)]
-    ])
+    orientation_matrix = __get_orientation_matrix(euler_angles)
 
     crs_load_dir = np.matmul(orientation_matrix, np.array(loading_direction))
     xb, yb, zb = crs_load_dir
