@@ -144,7 +144,6 @@ def __get_orientation_matrix(euler_angles):
 def __rotate_stiffness(D11, D12, D44, euler_angles):
     # https://jakubmikula.com/solidmechanics/2017/06/18/Cubic-Elasticity.html
     R_cg = __get_orientation_matrix(euler_angles)
-    print(R_cg)
     
     D = np.zeros((6,6))
     D[0,0] = D11; D[0,1] = D12; D[0,2] = D12
@@ -189,6 +188,17 @@ def __rotate_stiffness(D11, D12, D44, euler_angles):
     D_rot = T_cg@D@R@invT_cg@invR
     
     return D_rot
+######################################################################################################################################
+
+def __flatten_stiffness(D):
+    return np.array([
+        D[0,0], D[0,1], D[0,2], D[0,3], D[0,4], D[0,5],
+                D[1,1], D[1,2], D[1,3], D[1,4], D[1,5],
+                        D[2,2], D[2,3], D[2,4], D[2,5],
+                                D[3,3], D[3,4], D[3,5],
+                                        D[4,4], D[4,5],
+                                                D[5,5]
+    ])
 
 ######################################################################################################################################
 
@@ -295,8 +305,9 @@ def write_nx_graph(graph_dir, hdf5_dir, texture, ith_sve):
         size = np.sum(grain_ids == feat)
 
         sorted_schmid = sorted(__get_fcc_schmids(ori, loading_direction=[1, 0, 0]), reverse=True)
+        rotated_stiffness = __flatten_stiffness(__rotate_stiffness(107.3, 60.9, 28.3, ori))
         
-        G.add_nodes_from([(feat, {"x": np.hstack([ori, size, sorted_schmid])})])
+        G.add_nodes_from([(feat, {"x": np.hstack([ori, size, sorted_schmid, rotated_stiffness])})])
         # G.add_nodes_from([(feat, {"x": np.array([sorted_schmid[-1], size])})])
 
     for feat, (nbrs, areas) in nbr_dict.items():

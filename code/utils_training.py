@@ -86,7 +86,7 @@ class GNN(torch.nn.Module):
     def __init__(self):
         super(GNN, self).__init__()
 
-        self.sage1 = SAGEConv(17,8,improved=True)
+        self.sage1 = SAGEConv(38,8,improved=True)
         self.sage2 = SAGEConv(8,8,improved=True)
         self.sage3 = SAGEConv(8,8,improved=True)
         self.sage4 = SAGEConv(8,8,improved=True)
@@ -109,11 +109,11 @@ class GNN(torch.nn.Module):
         # x = F.dropout(x, 0.9, training=self.training)
         x = F.elu(self.sage4(x, edge_index))
         # x = F.dropout(x, 0.9, training=self.training)
-        x = F.relu(self.sage5(x, edge_index))
+        x = F.elu(self.sage5(x, edge_index))
         # x = F.dropout(x, 0.9, training=self.training)
-        x = F.relu(self.sage6(x, edge_index))
+        x = F.elu(self.sage6(x, edge_index))
         # x = F.dropout(x, 0.9, training=self.training)
-        x = F.relu(self.sage7(x, edge_index))
+        x = F.elu(self.sage7(x, edge_index))
 
 
         x = self.out(x)
@@ -154,7 +154,7 @@ def train(model, train_params, train_loader, val_loader, logfile_dir, logfig_dir
     elif opt_name == 'AdamW':
         optimizer = torch.optim.AdamW(model.parameters(), lr= lr, betas=(0.9,0.999),eps=1e-08,weight_decay=weight_decay)
     
-    scheduler = ScheduledOptim(optimizer, n_warmup_steps=100, decay_rate=lr_decay_rate)
+    scheduler = ScheduledOptim(optimizer, n_warmup_steps=100, decay_rate=lr_decay_rate, steps=[500,600,700,800,900])
     scheduler.update()
     
     if loss_fname == 'mseLoss':
@@ -174,7 +174,7 @@ def train(model, train_params, train_loader, val_loader, logfile_dir, logfig_dir
             train_pred = model(train_batch).squeeze()
             train_true = train_batch.fip.squeeze()
 
-            train_loss = loss_func(train_pred, train_true)
+            train_loss =  loss_func(train_pred, train_true)
 
             train_loss.backward()
 
