@@ -143,7 +143,7 @@ def __get_orientation_matrix(euler_angles):
 
 def __rotate_stiffness(D11, D12, D44, euler_angles):
     # https://jakubmikula.com/solidmechanics/2017/06/18/Cubic-Elasticity.html
-    R_cg = __get_orientation_matrix(euler_angles)
+    R_cg = np.linalg.inv(__get_orientation_matrix(euler_angles))
     
     D = np.zeros((6,6))
     D[0,0] = D11; D[0,1] = D12; D[0,2] = D12
