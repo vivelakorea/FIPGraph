@@ -83,37 +83,46 @@ class GNN(torch.nn.Module):
     '''
     Graph Neural Network
     '''
-    def __init__(self):
+    def __init__(self,n,k):
         super(GNN, self).__init__()
 
-        self.sage1 = SAGEConv(38,8,improved=True)
-        self.sage2 = SAGEConv(8,8,improved=True)
-        self.sage3 = SAGEConv(8,8,improved=True)
-        self.sage4 = SAGEConv(8,8,improved=True)
-        self.sage5 = SAGEConv(8,8,improved=True)
-        self.sage6 = SAGEConv(8,8,improved=True)
-        self.sage7 = SAGEConv(8,1,improved=True)
+        self.convs = torch.nn.ModuleList()
+
+        for kk in range(1,k+1):
+            if kk == 1:
+                self.convs.append(SAGEConv(38,n,improved=True))
+            else:
+                self.convs.append(SAGEConv(n,n,improved=True))
+
+        # self.sage1 = SAGEConv(38,n,k=k,improved=True)
+        # self.sage2 = SAGEConv(8,8,improved=True)
+        # self.sage3 = SAGEConv(8,8,improved=True)
+        # self.sage4 = SAGEConv(8,8,improved=True)
+        # self.sage5 = SAGEConv(8,8,improved=True)
+        # self.sage6 = SAGEConv(8,8,improved=True)
+        # self.sage7 = SAGEConv(8,8,improved=True)
         # self.gconv6 = GCNConv(16,16)
         # self.sigmoid1 = F.relu()
 
-        self.out = Linear(1,1)
+        self.out = Linear(n,1)
 
     def forward(self, data):
         x, edge_index, edge_weight = data.x, data.edge_index, data.edge_weight
 
-        x = F.elu(self.sage1(x, edge_index))
+        for i, conv in enumerate(self.convs):
+            x = F.elu(conv(x, edge_index))
         # x = F.dropout(x, 0.8, training=self.training)
-        x = F.elu(self.sage2(x, edge_index))
+        # x = F.elu(self.sage2(x, edge_index))
+        # # x = F.dropout(x, 0.9, training=self.training)
+        # x = F.elu(self.sage3(x, edge_index))
+        # # x = F.dropout(x, 0.9, training=self.training)
+        # x = F.elu(self.sage4(x, edge_index))
+        # # x = F.dropout(x, 0.9, training=self.training)
+        # x = F.elu(self.sage5(x, edge_index))
+        # # x = F.dropout(x, 0.9, training=self.training)
+        # x = F.elu(self.sage6(x, edge_index))
         # x = F.dropout(x, 0.9, training=self.training)
-        x = F.elu(self.sage3(x, edge_index))
-        # x = F.dropout(x, 0.9, training=self.training)
-        x = F.elu(self.sage4(x, edge_index))
-        # x = F.dropout(x, 0.9, training=self.training)
-        x = F.elu(self.sage5(x, edge_index))
-        # x = F.dropout(x, 0.9, training=self.training)
-        x = F.elu(self.sage6(x, edge_index))
-        # x = F.dropout(x, 0.9, training=self.training)
-        x = F.elu(self.sage7(x, edge_index))
+        # x = F.elu(self.sage7(x, edge_index))
 
 
         x = self.out(x)
@@ -138,10 +147,8 @@ def getLoader(datalist_dir, batch_fraction):
 
 #########################################################################################################
 
-def train(model, train_params, train_loader, val_loader, logfile_dir, logfig_dir):
+def train(model, train_params, train_loader, val_loader, logfile_dir, print_mode):
 
-    # __seed_all(seed)
-    
     opt_name = train_params['opt_name']
     n_epoch = train_params['n_epoch']
     lr = train_params['lr']
@@ -154,7 +161,7 @@ def train(model, train_params, train_loader, val_loader, logfile_dir, logfig_dir
     elif opt_name == 'AdamW':
         optimizer = torch.optim.AdamW(model.parameters(), lr= lr, betas=(0.9,0.999),eps=1e-08,weight_decay=weight_decay)
     
-    scheduler = ScheduledOptim(optimizer, n_warmup_steps=100, decay_rate=lr_decay_rate, steps=[500,600,700,800,900])
+    scheduler = ScheduledOptim(optimizer, n_warmup_steps=100, decay_rate=lr_decay_rate, steps=[200,300,400,500,600,700,800,900])
     scheduler.update()
     
     if loss_fname == 'mseLoss':
@@ -165,7 +172,6 @@ def train(model, train_params, train_loader, val_loader, logfile_dir, logfig_dir
     print(f'{opt_name},{n_epoch},{lr},{weight_decay},{loss_fname}', file=log_f, flush=True)
     print(f'epoch, train_loss, val_loss, val_meanARE', file=log_f, flush=True)
 
-    fname, ext = logfig_dir.split('.')
     for epoch in range(n_epoch):
         model.train()
         for train_batch in train_loader:
@@ -191,11 +197,13 @@ def train(model, train_params, train_loader, val_loader, logfile_dir, logfig_dir
         
         
         if epoch%5 == 0:
-            print("[Epoch {}]".format(epoch))
-            print("[Loss : {}]".format(val_loss.item()))
-            print("[meanARE : {}]".format(val_meanARE))
-            print("[Learning rate : {}]".format(optimizer.param_groups[0]['lr']) )
-
+            if print_mode:
+                print("[Epoch {}]".format(epoch))
+                print("[Loss : {}]".format(val_loss.item()))
+                print("[meanARE : {}]".format(val_meanARE))
+                print("[Learning rate : {}]".format(optimizer.param_groups[0]['lr']) )
+            
+            print(f'{epoch}, {train_loss}, {val_loss}, {val_meanARE}', file=log_f, flush=True)
 
 
     log_f.close()
