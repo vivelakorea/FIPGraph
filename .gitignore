@@ -4,3 +4,6 @@ fip_*.csv
 *.hdf5
 *.dream3d
 __pycache__
+*.pt
+*.csv
+*.xlsx

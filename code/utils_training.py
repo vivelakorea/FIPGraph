@@ -6,9 +6,10 @@ from matplotlib import pyplot as plt
 import numpy as np
 from sympy import Li
 import torch
-from torch_geometric.nn import Linear, GCNConv, SAGEConv
-from torch.nn import ReLU, Sigmoid
+from torch_geometric.nn import Linear, GCNConv, SAGEConv, GINConv, MessagePassing, global_mean_pool
+from torch.nn import ReLU, Sigmoid, ELU
 import torch.nn.functional as F
+from torch.nn import Sequential
 from torch_geometric.loader import DataLoader
 
 # warnings.filterwarnings('ignore')
@@ -83,14 +84,14 @@ class GNN(torch.nn.Module):
     '''
     Graph Neural Network
     '''
-    def __init__(self,n,k):
+    def __init__(self,n,k,top=12):
         super(GNN, self).__init__()
 
         self.convs = torch.nn.ModuleList()
 
         for kk in range(1,k+1):
             if kk == 1:
-                self.convs.append(SAGEConv(38,n,improved=True))
+                self.convs.append(SAGEConv(top,n,improved=True))
             else:
                 self.convs.append(SAGEConv(n,n,improved=True))
 
@@ -130,6 +131,56 @@ class GNN(torch.nn.Module):
         return x
     
 #########################################################################################################
+    
+class MLP(torch.nn.Module):
+    '''
+    Multi Layer Perceptron
+    '''
+    def __init__(self):
+        super(MLP, self).__init__()
+
+        self.linear1 = Linear(38, 8)
+        self.linear2 = Linear(8, 8)
+        self.linear3 = Linear(8, 8)
+        self.linear4 = Linear(8, 1)
+
+    def forward(self, data):
+        x, edge_index, edge_weight = data.x, data.edge_index, data.edge_weight
+
+        x = F.elu(self.linear1(x))
+        x = F.elu(self.linear2(x))
+        x = F.elu(self.linear3(x))
+        x = self.linear4(x)
+
+        return x
+    
+#########################################################################################################
+    
+class MyConv(MessagePassing):
+    def __init__(self, N1, N2):
+        super().__init__(aggr='mean')
+        self.lin = Linear(N1, N2)
+    def forward(self, x, edge_index):
+        x = F.relu(self.lin(x))
+        x = self.propagate(edge_index, x=x)
+        return x
+
+class GNNAniso(torch.nn.Module):
+    '''
+    Graph Neural Network
+    '''
+    def __init__(self, N, N_fl):
+        super(GNNAniso, self).__init__()
+        self.conv = MyConv(N, N_fl)
+        self.out = Linear(N_fl, 1)
+
+    def forward(self, data):
+        x, edge_index= data.x, data.edge_index
+        x= self.conv(x,edge_index)
+        x = self.out(x)
+        return x
+    
+#########################################################################################################
 
 def getLoader(datalist_dir, batch_fraction):
     
@@ -161,7 +212,7 @@ def train(model, train_params, train_loader, val_loader, logfile_dir, print_mode
     elif opt_name == 'AdamW':
         optimizer = torch.optim.AdamW(model.parameters(), lr= lr, betas=(0.9,0.999),eps=1e-08,weight_decay=weight_decay)
     
-    scheduler = ScheduledOptim(optimizer, n_warmup_steps=100, decay_rate=lr_decay_rate, steps=[200,300,400,500,600,700,800,900])
+    scheduler = ScheduledOptim(optimizer, n_warmup_steps=100, decay_rate=lr_decay_rate, steps=train_params['decay_steps'])
     scheduler.update()
     
     if loss_fname == 'mseLoss':
@@ -172,7 +223,7 @@ def train(model, train_params, train_loader, val_loader, logfile_dir, print_mode
     print(f'{opt_name},{n_epoch},{lr},{weight_decay},{loss_fname}', file=log_f, flush=True)
     print(f'epoch, train_loss, val_loss, val_meanARE', file=log_f, flush=True)
 
-    for epoch in range(n_epoch):
+    for epoch in range(1,n_epoch+1):
         model.train()
         for train_batch in train_loader:
             optimizer.zero_grad()
